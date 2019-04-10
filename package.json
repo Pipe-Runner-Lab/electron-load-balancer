@@ -1,0 +1,27 @@
+{
+  "name": "electron-load-balancer",
+  "version": "1.0.0",
+  "description": "Electron background task processor for humans",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AakashMallik/electron-load-balancer.git"
+  },
+  "keywords": [
+    "Electron",
+    "npm",
+    "background"
+  ],
+  "author": "Aakash Mallik",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AakashMallik/electron-load-balancer/issues"
+  },
+  "homepage": "https://github.com/AakashMallik/electron-load-balancer#readme",
+  "dependencies": {
+    "electron": "^4.1.4"
+  }
+}
