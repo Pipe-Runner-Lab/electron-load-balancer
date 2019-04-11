@@ -8,19 +8,16 @@ let workerList = {};
 
 const createHiddenWindow = filePath => {
 	const startUrl = url.format({
-		pathname: path.join(__dirname, filePath),
+		pathname: path.join(__dirname, `/../${filePath}`),
 		protocol: 'file:',
 		slashes: true,
 	});
-	hiddenWindow = new BrowserWindow({ show: false });
+	let hiddenWindow = new BrowserWindow({ show: false });
 	hiddenWindow.loadURL(startUrl);
 	hiddenWindow.on('closed', () => {
 		console.log('background window closed');
 	});
-};
-
-exports.printMsg = () => {
-	console.log('This is a message from the demo package');
+	return hiddenWindow;
 };
 
 exports.startBackgroundProcess = (ipcRenderer, processName, args) => {
@@ -28,7 +25,15 @@ exports.startBackgroundProcess = (ipcRenderer, processName, args) => {
 	Desciption: Starts the background prcoess matching the
 	name from the registeredpath array
 	*/
-	ipcRenderer.send('BACKGROUND_PROCESS_START', args);
+	ipcRenderer.send('BACKGROUND_PROCESS_START', { processName, values: args });
+};
+
+exports.stopBackgroundProcess = (ipcRenderer, processName) => {
+	/* 
+	Desciption: Starts the background prcoess matching the
+	name from the registeredpath array
+	*/
+	ipcRenderer.send('BACKGROUND_PROCESS_STOP', { processName });
 };
 
 exports.register = (ipcMain, args) => {
@@ -39,7 +44,7 @@ exports.register = (ipcMain, args) => {
 
 	registeredPath = args;
 	ipcMain.on('BACKGROUND_PROCESS_START', (event, args) => {
-		if (workerList.length < cpus) {
+		if (Object.keys(workerList).length < cpus) {
 			const { processName, values } = args;
 			workerList = {
 				...workerList,
@@ -53,11 +58,16 @@ exports.register = (ipcMain, args) => {
 		}
 	});
 
+	ipcMain.on('BACKGROUND_PROCESS_STOP', (event, args) => {
+		const { processName } = args;
+		workerList[processName].windowObject.webContents.send('BACKGROUND_PROCESS_STOP');
+	});
+
 	ipcMain.on('BACKGROUND_PROCESS_INITIALIZED', (event, args) => {
 		// use this to pass the initialization data
 		// send back initialization data
 		const { processName } = args;
-		event.send('BACKGROUND_PROCESS_WORKING', {
+		event.sender.send('BACKGROUND_PROCESS_WORKING', {
 			values: workerList[processName].values,
 		});
 	});
@@ -86,11 +96,14 @@ exports.initialize = (ipcRenderer, processName, func) => {
 	});
 };
 
-exports.kill = (ipcRenderer, processName) => {
+exports.kill = (ipcRenderer, processName, func) => {
 	/* 
 	Desciption: Sends an IPC signal to kill the process
 	*/
-	ipcRenderer.send('BACKGROUND_PROCESS_FINISHED', {
-		processName,
+	ipcRenderer.on('BACKGROUND_PROCESS_STOP', (event, args) => {
+		func();
+		ipcRenderer.send('BACKGROUND_PROCESS_FINISHED', {
+			processName,
+		});
 	});
 };
