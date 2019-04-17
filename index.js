@@ -8,7 +8,7 @@ let workers = {};
 
 const createHiddenWindow = filePath => {
 	const startUrl = url.format({
-		pathname: path.join(__dirname, `/../${filePath}`),
+		pathname: path.join(__dirname, `/../../${filePath}`),
 		protocol: 'file:',
 		slashes: true,
 	});

@@ -57,23 +57,23 @@ const loadBalancer = require('electron-load-balancer');
 loadBalancer.register(
 	ipcMain,
 	{
-		'oscilloscope': '/../linkers/oscilloscope.html',
-		'logicAnalyser': '/../linkers/logicAnalyser.html',
+		'oscilloscope': '/src/linkers/oscilloscope.html',
+		'logicAnalyser': 'src/linkers/logicAnalyser.html',
 	}
 )
 ```
-**Note**: The file path should be derived from the place where main.js actually resides. Here is my file structure for more clarity.  
+**Note**: The file path should be derived from the **project root**. Here is my file structure for more clarity.  
 ```
 |--node_modules
 |
 |--src
 |	|
 |	|--main.js
-|
-|--linkers
-|	|
-|	|--oscilloscope.html
-|	|--logicAnalyser.html
+| |
+| linkers
+|		|
+|		|--oscilloscope.html
+|		|--logicAnalyser.html
 ```
 
 ***
