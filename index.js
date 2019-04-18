@@ -69,6 +69,11 @@ exports.register = (ipcMain, registeredPaths) => {
 		const { processName } = args;
 		delete workers[processName];
 	});
+
+	ipcMain.on('TO_WORKER', (event, args) => {
+		const {processName} = args;
+		workers[processName].windowObject.webContents.send('TO_WORKER', args);
+	});
 };
 
 exports.startBackgroundProcess = (ipcRenderer, processName, values) => {
@@ -185,5 +190,46 @@ exports.finish = (ipcRenderer, processName) => {
 
 	ipcRenderer.send('WORKER_KILL', {
 		processName,
+	});
+};
+
+exports.send = (ipcRenderer, processName, values) => {
+	/* 
+	Desciption: Used to communicate with the hidden process. A use case would be to
+	send in data once the process has been initiated.
+	
+	Args: 
+		ipcRenderer (required): The ipcRenderer being used in the hidden window 
+			renderer process.
+		processName (required): The name of the process matching the one used 
+			during registration of the current html file.
+		value (required): Values that needed to be passed to the hidden process.
+	
+	Returns: none
+	*/
+	ipcRenderer.send('TO_WORKER', {
+		processName,
+		values,
+	});
+};
+
+exports.on = (ipcRenderer, processNameOuter, func) => {
+	/* 
+	Desciption: A hook that will exectute the function passed in as the third parameter,
+	with the values as its arguments passed using loadbalancer.send funtion.
+	
+	Args: 
+		ipcRenderer (required): The ipcRenderer being used in the hidden window 
+			renderer process.
+		processName (required): The name of the process matching the one used 
+			during registration of the current html file.
+		func (required): The fuction that when exectued with the values passed as its args
+		send using loadbalancer.send() function.
+	
+	Returns: none
+	*/
+	ipcRenderer.on('TO_WORKER', (event, args) => {
+		const { processName, values } = args;
+		processNameOuter === processName && func(values);
 	});
 };
