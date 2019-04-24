@@ -15,7 +15,7 @@ const createHiddenWindow = filePath => {
 	let hiddenWindow = new BrowserWindow({ show: false });
 	hiddenWindow.loadURL(startUrl);
 	hiddenWindow.on('closed', () => {
-		console.log('Background window closed');
+		continue;
 	});
 	return hiddenWindow;
 };
@@ -55,7 +55,7 @@ exports.register = (ipcMain, registeredPaths) => {
 
 	ipcMain.on('BACKGROUND_PROCESS_STOP', (event, args) => {
 		const { processName } = args;
-		workers[processName].windowObject.webContents.send('BACKGROUND_PROCESS_STOP');
+		workers[processName] && workers[processName].windowObject.webContents.send('BACKGROUND_PROCESS_STOP');
 	});
 
 	ipcMain.on('WORKER_INIT', (event, args) => {
@@ -67,6 +67,7 @@ exports.register = (ipcMain, registeredPaths) => {
 
 	ipcMain.on('WORKER_KILL', (event, args) => {
 		const { processName } = args;
+		workers[processName].windowObject.close();
 		delete workers[processName];
 	});
 
