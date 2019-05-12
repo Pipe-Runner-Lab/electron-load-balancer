@@ -14,29 +14,11 @@ const createHiddenWindow = filePath => {
 	});
 	let hiddenWindow = new BrowserWindow({ show: false });
 	hiddenWindow.loadURL(startUrl);
-	hiddenWindow.on('closed', () => {
-		continue;
-	});
+	hiddenWindow.on('closed', () => {});
 	return hiddenWindow;
 };
 
 exports.register = (ipcMain, registeredPaths) => {
-	/* 
-	Desciption: Used to populate registeredPath object, which is later used for 
-		hidden window creation. This function is also responsible for setting up
-		the other internal IPC listeners that handle creation and destruction of
-		background workers.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the visible window 
-			renderer process.
-		registeredPaths (required): An object with keys being the process name used
-			to represent each hidden worker and value being the file path of the html
-			that will be used to create the hidden window.
-	
-	Returns: none
-	*/
-
 	registeredPaths = registeredPaths;
 	ipcMain.on('BACKGROUND_PROCESS_START', (event, args) => {
 		if (Object.keys(workers).length < cpus) {
@@ -55,8 +37,9 @@ exports.register = (ipcMain, registeredPaths) => {
 
 	ipcMain.on('BACKGROUND_PROCESS_STOP', (event, args) => {
 		const { processName } = args;
-		workers[processName] && workers[processName].windowObject.webContents.send('BACKGROUND_PROCESS_STOP');
-	});
+		workers[processName] &&
+			workers[processName].windowObject.webContents.send('BACKGROUND_PROCESS_STOP');
+	}); 
 
 	ipcMain.on('WORKER_INIT', (event, args) => {
 		const { processName } = args;
@@ -72,28 +55,12 @@ exports.register = (ipcMain, registeredPaths) => {
 	});
 
 	ipcMain.on('TO_WORKER', (event, args) => {
-		const {processName} = args;
+		const { processName } = args;
 		workers[processName].windowObject.webContents.send('TO_WORKER', args);
 	});
 };
 
 exports.startBackgroundProcess = (ipcRenderer, processName, values) => {
-	/* 
-	Desciption: Sends an IPC message to main process to create a hidden window for
-		background processing. The html file matching the processName key used during 
-		registration will be created.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the visible window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of html file.
-		values (optional): The initialization values that may be required for the
-			background process.
-	
-	Returns: none
-	*/
-
 	ipcRenderer.send('BACKGROUND_PROCESS_START', {
 		processName,
 		values,
@@ -101,43 +68,12 @@ exports.startBackgroundProcess = (ipcRenderer, processName, values) => {
 };
 
 exports.stopBackgroundProcess = (ipcRenderer, processName) => {
-	/* 
-	Desciption: Sends an IPC message to main process to stop an already running
-		background process. The hidden window matching the processName key used 
-		during registration will be destroyed.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the visible window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of html file.
-	
-	Returns: none
-	*/
-
 	ipcRenderer.send('BACKGROUND_PROCESS_STOP', {
 		processName,
 	});
 };
 
 exports.onInitialize = (ipcRenderer, processName, func) => {
-	/* 
-	Desciption: Sends an IPC message to main process letting it know that the hidden
-		window has been successfully created and the blocking process can now be 
-		safely started. This also takes care of passing the initilization values 
-		that may be needed for the background process.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the hidden window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of the current html file.
-		func (required): The fuction that when exectued will create a heavy blocking
-			process.
-	
-	Returns: none
-	*/
-
 	ipcRenderer.on('WORKER_INIT_COMPLETE', (event, args) => {
 		const { values } = args;
 		func(values);
@@ -149,24 +85,8 @@ exports.onInitialize = (ipcRenderer, processName, func) => {
 };
 
 exports.onFinish = (ipcRenderer, processName, func) => {
-	/* 
-	Desciption: A hook that is placed inside the computation function, which is
-		used to terminate the blocking process on request from the visible renderer
-		process. This is the place for killing the blocking thread and clean up work.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the hidden window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of the current html file.
-		func (optional): The fuction that when exectued just before the process is
-			killed. The place to do cleanup work.
-	
-	Returns: none
-	*/
-
 	ipcRenderer.on('BACKGROUND_PROCESS_STOP', (event, args) => {
-		if( func ) func();
+		if (func) func();
 		ipcRenderer.send('WORKER_KILL', {
 			processName,
 		});
@@ -174,40 +94,12 @@ exports.onFinish = (ipcRenderer, processName, func) => {
 };
 
 exports.finish = (ipcRenderer, processName) => {
-	/* 
-	Desciption: If the process is a heavy computation that eventually dies out on
-		its own and does not require a remote tigger to be killed, then this funtion
-		is used to notify the load-balancer about the finished job so that it can
-		kill the hidden process. It is somewhat of a manual trigger.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the hidden window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of the current html file.
-	
-	Returns: none
-	*/
-
 	ipcRenderer.send('WORKER_KILL', {
 		processName,
 	});
 };
 
 exports.send = (ipcRenderer, processName, values) => {
-	/* 
-	Desciption: Used to communicate with the hidden process. A use case would be to
-	send in data once the process has been initiated.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the hidden window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of the current html file.
-		value (required): Values that needed to be passed to the hidden process.
-	
-	Returns: none
-	*/
 	ipcRenderer.send('TO_WORKER', {
 		processName,
 		values,
@@ -215,20 +107,6 @@ exports.send = (ipcRenderer, processName, values) => {
 };
 
 exports.on = (ipcRenderer, processNameOuter, func) => {
-	/* 
-	Desciption: A hook that will exectute the function passed in as the third parameter,
-	with the values as its arguments passed using loadbalancer.send funtion.
-	
-	Args: 
-		ipcRenderer (required): The ipcRenderer being used in the hidden window 
-			renderer process.
-		processName (required): The name of the process matching the one used 
-			during registration of the current html file.
-		func (required): The fuction that when exectued with the values passed as its args
-		send using loadbalancer.send() function.
-	
-	Returns: none
-	*/
 	ipcRenderer.on('TO_WORKER', (event, args) => {
 		const { processName, values } = args;
 		processNameOuter === processName && func(values);
