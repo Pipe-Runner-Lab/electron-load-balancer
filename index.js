@@ -63,7 +63,7 @@ exports.register = (ipcMain, registeredPaths) => {
   });
 };
 
-exports.stopAllBackgroundProcess = () => {
+exports.stopAll = () => {
   Object.keys(workers).map(processName => {
     workers[processName].windowObject.webContents.send('WORKER_KILL');
     workers[processName].windowObject.close();
@@ -71,20 +71,20 @@ exports.stopAllBackgroundProcess = () => {
   });
 };
 
-exports.startBackgroundProcess = (ipcRenderer, processName, values) => {
+exports.start = (ipcRenderer, processName, values) => {
   ipcRenderer.send('BACKGROUND_PROCESS_START', {
     processName,
     values,
   });
 };
 
-exports.stopBackgroundProcess = (ipcRenderer, processName) => {
+exports.stop = (ipcRenderer, processName) => {
   ipcRenderer.send('BACKGROUND_PROCESS_STOP', {
     processName,
   });
 };
 
-exports.onInitialize = (ipcRenderer, processName, func, killfunc) => {
+exports.job = (ipcRenderer, processName, func, killfunc) => {
   ipcRenderer.on('WORKER_INIT_COMPLETE', (event, args) => {
     const { values } = args;
     func(values);
@@ -99,14 +99,14 @@ exports.onInitialize = (ipcRenderer, processName, func, killfunc) => {
   });
 };
 
-exports.send = (ipcRenderer, processName, values) => {
+exports.sendData = (ipcRenderer, processName, values) => {
   ipcRenderer.send('TO_WORKER', {
     processName,
     values,
   });
 };
 
-exports.on = (ipcRenderer, processNameOuter, func) => {
+exports.onRecieveData = (ipcRenderer, processNameOuter, func) => {
   ipcRenderer.on('TO_WORKER', (event, args) => {
     const { processName, values } = args;
     processNameOuter === processName && func(values);

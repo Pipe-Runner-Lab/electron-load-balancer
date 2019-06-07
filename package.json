@@ -1,6 +1,6 @@
 {
   "name": "electron-load-balancer",
-  "version": "1.0.9",
+  "version": "2.0.0",
   "description": "Electron background task processor for humans",
   "main": "index.js",
   "scripts": {
