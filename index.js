@@ -106,7 +106,7 @@ exports.sendData = (ipcRenderer, processName, values) => {
   });
 };
 
-exports.onRecieveData = (ipcRenderer, processNameOuter, func) => {
+exports.onReceiveData = (ipcRenderer, processNameOuter, func) => {
   ipcRenderer.on('TO_WORKER', (event, args) => {
     const { processName, values } = args;
     processNameOuter === processName && func(values);
