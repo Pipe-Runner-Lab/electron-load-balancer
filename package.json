@@ -1,6 +1,6 @@
 {
   "name": "electron-load-balancer",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Electron background task processor for humans",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,7 @@
     "url": "https://github.com/AakashMallik/electron-load-balancer/issues"
   },
   "homepage": "https://github.com/AakashMallik/electron-load-balancer#readme",
-  "dependencies": {
-    "electron": "^4.1.4"
+  "peerDependencies": {
+    "electron": "^9.0.0"
   }
 }
