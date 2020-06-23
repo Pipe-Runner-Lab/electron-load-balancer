@@ -44,8 +44,9 @@ Args:
 Returns: none
 ```
 First off, you need to register all the background processes that you plan to execute in your app. The ```registeredPaths``` is an object with keys being the **process name** and values being the **html file path**. As the syntax shows, you'll need to pass the ipcMain object as the first argument. Here is a quick example.  
+  
 ```javascript
-// in main.js
+// in electron.js
 const { ipcMain } = require('electron');
 const loadBalancer = require('electron-load-balancer');
 
@@ -57,8 +58,8 @@ const loadBalancer = require('electron-load-balancer');
 loadBalancer.register(
 	ipcMain,
 	{
-		'oscilloscope': '/src/linkers/oscilloscope.html',
-		'logicAnalyser': 'src/linkers/logicAnalyser.html',
+		'oscilloscope':  '/background_tasks/oscilloscope.html',
+		'logicAnalyser': '/background_tasks/logicAnalyser.html',
 	}
 )
 ```
@@ -69,8 +70,8 @@ loadBalancer.register(
 |--src
 |	|
 |	|--main.js
-| |
-| linkers
+|
+|--background_tasks
 |		|
 |		|--oscilloscope.html
 |		|--logicAnalyser.html
@@ -79,7 +80,7 @@ loadBalancer.register(
 ***
 
 ### Start / Stop background process from visible window
-#### 2. *startBackgroundProcess( ipcRenderer, processName, values )*
+#### 2. *start( ipcRenderer, processName, values )*
 ```
 Desciption: Sends an IPC message to main process to create a hidden window for
 	background processing. The html file matching the processName key used during 
@@ -97,7 +98,7 @@ Returns: none
 ```
 
 This function is used to tell the library to start initializing the background process. The **processName** mentioned as the second argument must match exactly to one of the processes mentioned during registration.  
-The third argument lets you pass any extra data that your background process may need to get started.  
+The third argument lets you pass any extra data that your background process may need to get started. It is wise to use an object, hence use key value pairs in case of multiple values.  
 The first argument will the the ipcRenderer object that will be imported in the renderer process.  
 Here is a quick example on how to use it assuming I wish to call it from a react component on a button click.
 
@@ -120,8 +121,8 @@ class App extends Component {
 	.
 	.
 
-	onClick = () => {
-		loadBalancer.startBackgroundProcess( ipcRenderer ,'oscilloscope');
+	componentDidMount(){
+		loadBalancer.start(ipcRenderer, 'oscilloscope');
 	}
 
 	.
@@ -132,7 +133,7 @@ class App extends Component {
 export default App
 ```
 
-#### 3. *stopBackgroundProcess( ipcRenderer, processName )*
+#### 3. *stop( ipcRenderer, processName )*
 ```
 Desciption: Sends an IPC message to main process to stop an already running
 	background process. The hidden window matching the processName key used 
@@ -147,7 +148,7 @@ Args:
 Returns: none
 ```
 
-This function is used to tell the library to stop and destroy the background process. The **processName** mentioned as the second argument must match exactly to one of the processes mentioned during registration.  
+This function is used to tell the library to stop and destroy the background process thus cleaning up resouruces in the process. The **processName** mentioned as the second argument must match exactly to one of the processes mentioned during registration.  
 The first argument will the the ipcRenderer object that will be imported in the renderer process. This is used only when the user is actually allowed to intervene in the background process.
 Here is a quick example on how to use it assuming I wish to call it from a react component on a button click.
 
@@ -170,20 +171,22 @@ class App extends Component {
 	.
 	.
 
-	onClick = () => {
-		loadBalancer.stopBackgroundProcess( ipcRenderer ,'oscilloscope');
+	componentWillUnmount(){
+		loadBalancer.stop(ipcRenderer, 'oscilloscope');
 	}
 
 	.
 	.
 	.
 }
-```
+```  
+  
+Note: If you create background processes using the start method, you are obligated to stop it using this method as for now, there is no way to auto clean resources.
 
 ***
 
 ### Initilization / Kill hook in hidden renderer process
-#### 4. *onInitialize( ipcRenderer, processName, func )*
+#### 4. *job( ipcRenderer, processName, func, cleanup_func )*
 ```
 Desciption: Sends an IPC message to main process letting it know that the hidden
 	window has been successfully created and the blocking process can now be 
@@ -197,6 +200,7 @@ Args:
 		during registration of the current html file.
 	func (required): The fuction that when exectued will create a heavy blocking
 		process.
+	cleanup_func (optional) : This function executes when the process is force stoped using the stop function from JS realm.
 
 Returns: none
 ```
@@ -207,115 +211,120 @@ The third argument is the function which when executed shall start the blocking 
 Here is a quick example on how to use it.
 
 ```html
-// in oscilloscope.js
+// in oscilloscope.html
 <script>
 	const { ipcRenderer } = require('electron');
 	const loadBalancer = require('electron-load-balancer');
 	
-	loadBalancer.onInitialize(ipcRenderer, 'oscilloscope', initialValues => {
-		
-		/* -------------------- Blocking code here ----------------------- */
+	loadBalancer.job(
+		ipcRenderer, 
+		'oscilloscope', 
+		initialValues => {
 
-		.
-		.
-		.
+			/* -------------------- Blocking code here ----------------------- */
 
-		/* --------------------------------------------------------------- */
-	
-	});
+			.
+			.
+			.
+
+			/* --------------------------------------------------------------- */
+
+		},
+		() => {
+				/* Cleanup code here */
+		}
+	);
 
 </script>
-```
+```  
+  
+Note: The cleanup code is executed **only** when the stop function is called from JS realm. It is the obligation of the developer to manaully call stop if the job finishes eventually. A nice way to use this architecture to your advantage is to have a never ending loop that listens for events and spaws multiple threads for background processing via python. A nice example of this has been implemented by me in the [PSLab Project](https://github.com/fossasia/pslab-desktop/blob/development/background_tasks/linker.html), feel free to use this.
 
-#### 5. *onFinish( ipcRenderer, processName, func )*
+### Sending / Recieving data in background process while processing
+The need for this occurs when you have a loop like structure accepting a command and data and initiates a long blocking computation task, but does not exit even after the computation is over, rather the loop continues waiting for its next command. In such cases a means to send and recieve data while processing becomes necessary.
+#### 5. *onReceiveData ( ipcRenderer, processName, func )*
 ```
-Desciption: A hook that is placed inside the computation function, which is
-	used to terminate the blocking process on request from the visible renderer
-	process. This is the place for killing the blocking thread and clean up work.
+Desciption: Sets up an event listener for any data being sent from visible renderer process that is meant for this particular process.
 
 Args: 
 	ipcRenderer (required): The ipcRenderer being used in the hidden window 
 		renderer process.
 	processName (required): The name of the process matching the one used 
 		during registration of the current html file.
-	func (optional): The fuction that when exectued just before the process is
-		killed. The place to do cleanup work.
+	func (optional) : The function that will be used to process this data and do the needful. The function takes an argument which 			 will basically be the data meant to be recieved.
 
 Returns: none
 ```
-
-This function comes in handy when the user is allowed to kill the process at will. When the user triggers the **stopBackgroundProcess** function, this hook is triggered and the function passed as the third argument is executed, which can be used to kill the process. The destruction of the hidden window will be handled by the library itself.
-Here is a little example with a **while loop** being the blocking process which can be terminated by changing the value of **variable**. Important thing to note here is the the hook is placed within the fucntion passed to the **onInitialize** hook.
+Here is a quick example for it.
 
 ```html
-// in oscilloscope.js
+// in oscilloscope.html
 <script>
 	const { ipcRenderer } = require('electron');
 	const loadBalancer = require('electron-load-balancer');
 	
-	loadBalancer.initialize(ipcRenderer, 'oscilloscope', initialValues => {
-		
-		/* -------------------- Blocking code here ----------------------- */
-
-		let x = true;
-
-		loadBalancer.onFinish(ipcRenderer, 'oscilloscope', () => {
-			x = false;
-		});
-
-		while( x ){
-			console.log( 'Loop running' );
-		}
-
-		/* --------------------------------------------------------------- */
+	loadBalancer.job(
+		ipcRenderer, 
+		'oscilloscope', 
+		initialValues => {
 	
-	});
+			/*------------------ Setting up event listeners ----------------- */
+			
+			loadBalancer.onReceiveData(ipcRenderer, 'linker', value => {
+				// Do something with value
+			});
+			
+			/*---------------------------------------------------------------- */
+
+			/* -------------------- Blocking code here ----------------------- */
+
+			.
+			.
+			.
+
+			/* --------------------------------------------------------------- */
+
+		},
+		() => {
+				/* Cleanup code here */
+		}
+	);
 
 </script>
-```
+```  
 
-#### 6. *finish( ipcRenderer, processName )*
-```
-Desciption: If the process is a heavy computation that eventually dies out on
-	its own and does not require a remote tigger to be killed, then this funtion
-	is used to notify the load-balancer about the finished job so that it can
-	kill the hidden process. It is somewhat of a manual trigger.
+#### 6. *sendData ( ipcRenderer, processName, value )*
+
+Desciption: Sends data to an already running background process (provided it is using onRecieve data)
 
 Args: 
 	ipcRenderer (required): The ipcRenderer being used in the hidden window 
 		renderer process.
 	processName (required): The name of the process matching the one used 
 		during registration of the current html file.
+	value (optional) :The data that needs to be sent to the background process.
 
-Returns: none
-```
+Here is a quick example for it.
 
-This function is optional and needs to be used if we don't use the kill hook which would mean that the user is not allowed to interupt the process once started. This function is necessary in that case as we will still need to let the library know that the task has been completed.   
-Here is an example demonstrating a **while loop** that is *blocking the thread but will release it eventually on its own*. 
-
-```html
+```js
 // in oscilloscope.js
-<script>
-	const { ipcRenderer } = require('electron');
-	const loadBalancer = require('electron-load-balancer');
-	
-	loadBalancer.initialize(ipcRenderer, 'oscilloscope', initialValues => {
-		
-		/* -------------------- Blocking code here ----------------------- */
+const electron = window.require('electron');
+const { ipcRenderer } = electron;
+const loadBalancer = window.require('electron-load-balancer');
 
-		let x = 100000000;
+loadBalancer.sendData(ipcRenderer, 'oscilloscope', {
+        command: 'GET_CONFIG_OSC',
+});
+```  
+  
+Note: It can be observed that there are special functions in the library to send data to and recive data in background process, but there is no special provision for doing it the other way round. The reason for it is quite simple, the library is internally managing the background process and we are not exposing the api for direct communication to make things easy for the developer. But while sending data from background process to visible render, we can do it using trivial IPC methods provided by electron itself. 
+A good example for this can be found in: 
+- https://github.com/fossasia/pslab-desktop/blob/development/background_tasks/linker.html#L50
+- https://github.com/fossasia/pslab-desktop/blob/development/src/screen/Oscilloscope/components/Graph.js#L35
+- https://github.com/fossasia/pslab-desktop/blob/development/public/electron.js#L87
+  
+The 3 files mentioned above shall show you how to send data from background process to renderer process.
 
-		while( x-- ){
-			console.log( 'Loop running' );
-		}
-		
-		/* --------------------------------------------------------------- */
-	
-		loadBalancer.finish(ipcRenderer, 'oscilloscope');
-	});
-
-</script>
-```
 ## How it works
 As a picture is worth a thousand words, here is a simple flow diagram of my architecture which is pretty primitive to be honest, but hey, it works!! :wink:
 
