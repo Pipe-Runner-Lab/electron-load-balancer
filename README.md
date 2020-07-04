@@ -2,6 +2,8 @@
 
 > Electron background task runner for humans :hearts:  
 
+Read my [article on Medium](https://medium.com/heuristics/electron-react-python-part-3-boilerplate-3-3-1a9cdd0a6b9d) for detailed walkthrough and sample application.
+
 There are three possible ways of doing heavy computation ( thread blocking jobs ) in electron environment without chocking the app
 * Web workers 
 * Forking
