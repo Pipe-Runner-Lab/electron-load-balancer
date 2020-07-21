@@ -7,7 +7,7 @@ let globalRegisteredPaths = {};
 let workers = {};
 
 const createHiddenWindow = (windowsInfo, debug) => {
-  const filePath = windowsInfo.url ? windowsInfo.url : windowsInfo
+  const filePath = windowsInfo.url ? windowsInfo.url : windowsInfo;
   const startUrl = url.format({
     pathname: path.join(__dirname, `/../../${filePath}`),
     protocol: 'file:',
