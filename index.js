@@ -74,11 +74,12 @@ exports.register = (ipcMain, registeredPaths, { debug = false }) => {
   });
 };
 
-// FIXME: object is destroyed beforehand, causing an error here
 exports.stopAll = () => {
   Object.keys(workers).map(processName => {
-    workers[processName].windowObject.webContents.send('WORKER_KILL');
-    workers[processName].windowObject.close();
+    if (!workers[processName].windowObject.isDestroyed()) {
+      workers[processName].windowObject.webContents.send('WORKER_KILL');
+      workers[processName].windowObject.close();
+    }
     delete workers[processName];
   });
 };
