@@ -18,6 +18,7 @@ const createHiddenWindow = (filePath, debug) => {
     // https://github.com/electron/electron/issues/17241.
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false
     },
     // This is extremely useful when something with the IPC goes
     // wrong.
